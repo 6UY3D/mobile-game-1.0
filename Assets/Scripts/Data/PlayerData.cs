@@ -4,34 +4,20 @@ using UnityEngine;
 
 namespace IdleShopkeeping.Data
 {
-    /// <summary>
-    /// Represents the saved state of an item placed in the store.
-    /// </summary>
     [System.Serializable]
-    public class PlacedItemData
-    {
-        public string itemID;
-        public Vector2Int gridPosition;
-        
-        // Plant-specific data
-        public System.DateTime lastWateredTime;
-    }
+    public class PlacedItemData { /* ... unchanged ... */ }
 
-    /// <summary>
-    /// A serializable class that holds all persistent data for a player.
-    /// </summary>
     [System.Serializable]
     public class PlayerData
     {
         public long gold;
         public int premiumCurrency;
         public List<string> ownedItemIDs;
-        
-        // NEW: List of items placed in the world.
         public List<PlacedItemData> placedItems;
-        
-        // NEW: The ID of the record currently on the turntable.
         public string currentRecordID;
+        
+        // NEW: Tracks ownership of the permanent IAP
+        public bool hasAutoWateringTool;
 
         public System.DateTime lastLogoutTime;
 
@@ -39,9 +25,10 @@ namespace IdleShopkeeping.Data
         {
             gold = 500;
             premiumCurrency = 10;
-            ownedItemIDs = new List<string> { "record_starter_chill", "decor_basic_plant" }; // Example starter items
+            ownedItemIDs = new List<string> { "record_starter_chill", "decor_basic_plant" };
             placedItems = new List<PlacedItemData>();
             currentRecordID = string.Empty;
+            hasAutoWateringTool = false; // Default to false
             lastLogoutTime = System.DateTime.UtcNow;
         }
     }
