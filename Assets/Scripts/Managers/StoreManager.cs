@@ -7,20 +7,14 @@ using System;
 
 namespace IdleShopkeeping.Managers
 {
-    /// <summary>
-    /// Manages the state of the player's store, including happiness,
-    /// placed items, and the currently playing record.
-    /// </summary>
     public class StoreManager : MonoBehaviour
     {
+        // ... (Instance, References, and Awake are unchanged)
         public static StoreManager Instance { get; private set; }
 
         [Header("References")]
-        [Tooltip("The parent transform for all instantiated store items.")]
         [SerializeField] private Transform _itemParent;
-        [Tooltip("Reference to the Item Database asset.")]
         [SerializeField] private ItemDatabaseSO _itemDatabase;
-        [Tooltip("Reference to the store's audio source for playing records.")]
         [SerializeField] private AudioSource _recordPlayerAudioSource;
 
         public int TotalHappiness { get; private set; }
@@ -41,14 +35,10 @@ namespace IdleShopkeeping.Managers
 
         private void Start()
         {
-            // Wait for GameManager to load data, then initialize the store.
-            // In a larger project, a more robust state machine or initialization sequence would be used.
-            Invoke(nameof(InitializeStore), 0.1f); 
+            Invoke(nameof(InitializeStore), 0.1f);
         }
 
-        /// <summary>
-        /// Loads all saved items from PlayerData and instantiates them in the world.
-        /// </summary>
+        // ... (InitializeStore and PlaceNewItem are unchanged)
         private void InitializeStore()
         {
             var playerData = GameManager.Instance.PlayerData;
@@ -61,10 +51,94 @@ namespace IdleShopkeeping.Managers
                 }
             }
             
-            SetRecord(playerData.currentRecordID);
+            SetRecord(playerData.currentRecordID, fromLoad: true);
             RecalculateStoreState();
         }
 
+        /// <summary>
+        /// MODIFIED: Now handles starting curses and prevents changing cursed records.
+        /// </summary>
+        public void SetRecord(string recordID, bool fromLoad = false)
+        {
+            // Prevent changing the record if a curse is active.
+            if (!fromLoad && CurseManager.Instance.IsCurseActive)
+            {
+                Debug.Log("Cannot change record while a curse is active!");
+                return;
+            }
+
+            GameManager.Instance.PlayerData.currentRecordID = recordID;
+            
+            var recordData = _itemDatabase.GetItemByID(recordID) as RecordData;
+            if (recordData != null)
+            {
+                CurrentMood = recordData.MoodEffect;
+                _recordPlayerAudioSource.clip = recordData.Track;
+                _recordPlayerAudioSource.Play();
+
+                // If the record is cursed, start the curse.
+                if (recordData.CurseData != null)
+                {
+                    CurseManager.Instance.BeginCurse(recordData.CurseData);
+                }
+            }
+            else
+            {
+                CurrentMood = StoreMood.None;
+                if(_recordPlayerAudioSource.isPlaying) _recordPlayerAudioSource.Stop();
+                _recordPlayerAudioSource.clip = null;
+            }
+            RecalculateStoreState();
+        }
+        
+        /// <summary>
+        /// MODIFIED: Instantiates items and adds PlantController if it's a plant.
+        /// </summary>
+        private void PlaceItemFromData(PlacedItemData placedData, ItemData data)
+        {
+            GameObject itemGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            itemGO.transform.SetParent(_itemParent);
+            itemGO.transform.position = new Vector3(placedData.gridPosition.x, 0.5f, placedData.gridPosition.y);
+            
+            var placeable = itemGO.AddComponent<PlaceableItem>();
+            placeable.Initialize(data, placedData.gridPosition);
+            _activeItems.Add(placeable);
+
+            // If the item is a plant, add and initialize a PlantController
+            if (data is DecorData decorData && data.ItemType == ItemType.Plant)
+            {
+                var plantController = itemGO.AddComponent<PlantController>();
+                plantController.Initialize(placedData, decorData);
+            }
+        }
+
+        /// <summary>
+        /// MODIFIED: Now queries PlantControllers for their current happiness.
+        /// </summary>
+        public void RecalculateStoreState()
+        {
+            TotalHappiness = 0;
+            foreach (var item in _activeItems)
+            {
+                if (item.Data is DecorData decorData)
+                {
+                    if (decorData.ItemType == ItemType.Plant)
+                    {
+                        // Get happiness from the PlantController, which accounts for wilting.
+                        TotalHappiness += item.GetComponent<PlantController>().CurrentHappiness;
+                    }
+                    else
+                    {
+                        // Regular decor happiness.
+                        TotalHappiness += decorData.HappinessValue;
+                    }
+                }
+            }
+            
+            OnStoreStateChanged?.Invoke();
+        }
+    }
+}
         /// <summary>
         /// Attempts to place a new item in the store.
         /// </summary>
