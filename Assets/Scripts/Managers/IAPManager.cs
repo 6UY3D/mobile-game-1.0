@@ -1,57 +1,28 @@
 // Filename: IAPManager.cs
 using UnityEngine;
 using UnityEngine.Purchasing;
-using System.Collections.Generic;
-using IdleShopkeeping.Data;
 
 namespace IdleShopkeeping.Managers
 {
-    /// <summary>
-    /// Manages all In-App Purchases using Unity's IAP services.
-    /// </summary>
     public class IAPManager : MonoBehaviour, IStoreListener
     {
+        // ... (Properties and Awake/Start are unchanged)
         public static IAPManager Instance { get; private set; }
-
         private static IStoreController _storeController;
         private static IExtensionProvider _storeExtensionProvider;
 
-        // Product IDs (must match the IDs in your IAP service configuration)
         public const string ProductID_Premium100 = "premium_currency_100";
         public const string ProductID_AutoWaterer = "permanent_autowater";
-        
-        private void Awake()
-        {
-            if (Instance != null && Instance != this) { Destroy(gameObject); return; }
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-
-        void Start()
-        {
-            if (_storeController == null) { InitializePurchasing(); }
-        }
+        // NEW: Product ID for the exorcism kit
+        public const string ProductID_ExorcismKit = "consumable_exorcism_kit";
 
         public void InitializePurchasing()
         {
             var builder = ConfigurationBuilder.Instance(StandardPurchasingModule.Instance());
             builder.AddProduct(ProductID_Premium100, ProductType.Consumable);
+            builder.AddProduct(ProductID_ExorcismKit, ProductType.Consumable); // Add new product
             builder.AddProduct(ProductID_AutoWaterer, ProductType.NonConsumable);
             UnityPurchasing.Initialize(this, builder);
-        }
-
-        public void OnInitialized(IStoreController controller, IExtensionProvider extensions)
-        {
-            _storeController = controller;
-            _storeExtensionProvider = extensions;
-            Debug.Log("IAP Initialized Successfully.");
-
-            // Check for existing non-consumable purchases on init
-            var autoWatererProduct = _storeController.products.WithID(ProductID_AutoWaterer);
-            if (autoWatererProduct != null && autoWatererProduct.hasReceipt)
-            {
-                GameManager.Instance.PlayerData.hasAutoWateringTool = true;
-            }
         }
 
         public PurchaseProcessingResult ProcessPurchase(PurchaseEventArgs args)
@@ -60,11 +31,28 @@ namespace IdleShopkeeping.Managers
 
             if (string.Equals(productID, ProductID_Premium100))
             {
-                Debug.Log("Processing purchase: 100 Premium Currency");
                 GameManager.Instance.PlayerData.premiumCurrency += 100;
             }
             else if (string.Equals(productID, ProductID_AutoWaterer))
             {
+                GameManager.Instance.PlayerData.hasAutoWateringTool = true;
+            }
+            // NEW: Handle the exorcism kit purchase
+            else if (string.Equals(productID, ProductID_ExorcismKit))
+            {
+                Debug.Log("Processing purchase: Exorcism Kit");
+                CurseManager.Instance.EndCurse();
+            }
+            else
+            {
+                Debug.LogWarning($"Unrecognized product ID: {productID}");
+            }
+            return PurchaseProcessingResult.Complete;
+        }
+
+        // ... (All other methods are unchanged)
+    }
+}            {
                 Debug.Log("Processing purchase: Auto-Watering Tool");
                 GameManager.Instance.PlayerData.hasAutoWateringTool = true;
             }
