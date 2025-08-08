@@ -1,35 +1,47 @@
 // Filename: PlayerData.cs
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace IdleShopkeeping.Data
 {
     /// <summary>
+    /// Represents the saved state of an item placed in the store.
+    /// </summary>
+    [System.Serializable]
+    public class PlacedItemData
+    {
+        public string itemID;
+        public Vector2Int gridPosition;
+        
+        // Plant-specific data
+        public System.DateTime lastWateredTime;
+    }
+
+    /// <summary>
     /// A serializable class that holds all persistent data for a player.
-    /// This object is what gets converted to and from JSON for saving/loading.
     /// </summary>
     [System.Serializable]
     public class PlayerData
     {
         public long gold;
         public int premiumCurrency;
-        
-        // We only save the IDs of the items the player owns.
-        // The full item data will be retrieved from the ItemDatabase.
         public List<string> ownedItemIDs;
         
-        // In a future phase, this would store the state of placed items.
-        // public List<PlacedItemData> placedItems;
+        // NEW: List of items placed in the world.
+        public List<PlacedItemData> placedItems;
         
+        // NEW: The ID of the record currently on the turntable.
+        public string currentRecordID;
+
         public System.DateTime lastLogoutTime;
 
-        /// <summary>
-        * Initializes a new PlayerData object with default values for a new game.
-        /// </summary>
         public PlayerData()
         {
-            gold = 500; // Starting gold
-            premiumCurrency = 10; // Starting premium currency
-            ownedItemIDs = new List<string>();
+            gold = 500;
+            premiumCurrency = 10;
+            ownedItemIDs = new List<string> { "record_starter_chill", "decor_basic_plant" }; // Example starter items
+            placedItems = new List<PlacedItemData>();
+            currentRecordID = string.Empty;
             lastLogoutTime = System.DateTime.UtcNow;
         }
     }
