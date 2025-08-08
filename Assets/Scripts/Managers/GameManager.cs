@@ -7,14 +7,13 @@ namespace IdleShopkeeping.Managers
 {
     public class GameManager : MonoBehaviour
     {
+        // ... (Properties and Awake are unchanged)
         public static GameManager Instance { get; private set; }
         public PlayerData PlayerData { get; private set; }
         public event Action<long> OnGoldChanged;
         
         [Header("Game Configuration")]
-        [Tooltip("The amount of gold generated per happiness point, per second.")]
         [SerializeField] private float _goldPerHappinessPerSecond = 0.01f;
-        [Tooltip("Base gold generated per second, even with zero happiness.")]
         [SerializeField] private float _baseGoldPerSecond = 0.1f;
 
         private void Awake()
@@ -29,42 +28,22 @@ namespace IdleShopkeeping.Managers
             LoadData();
         }
 
-        private void Start()
-        {
-            // This is now delayed to ensure StoreManager has initialized.
-            Invoke(nameof(CalculateOfflineProgress), 0.2f); 
-        }
-
         private void Update()
         {
             if (StoreManager.Instance == null) return;
             
-            // MODIFIED: Gold generation is now based on happiness.
             float currentHappiness = StoreManager.Instance.TotalHappiness;
-            float goldThisFrame = (_baseGoldPerSecond + (currentHappiness * _goldPerHappinessPerSecond)) * Time.deltaTime;
+            // MODIFIED: Get the multiplier from the CurseManager.
+            float curseMultiplier = CurseManager.Instance.GetGoldMultiplier();
             
-            // Use Math.Ceiling to ensure we eventually get gold even with tiny fractions.
+            float goldThisFrame = (_baseGoldPerSecond + (currentHappiness * _goldPerHappinessPerSecond)) * curseMultiplier * Time.deltaTime;
+            
             AddGold((long)Math.Ceiling(goldThisFrame));
         }
         
-        public void AddGold(long amount)
-        {
-            if (amount <= 0) return;
-            PlayerData.gold += amount;
-            OnGoldChanged?.Invoke(PlayerData.gold);
-        }
-
-        public bool SpendGold(long amount)
-        {
-            if (PlayerData.gold < amount) return false;
-            PlayerData.gold -= amount;
-            OnGoldChanged?.Invoke(PlayerData.gold);
-            return true;
-        }
-
-        private void LoadData()
-        {
-            PlayerData = SaveManager.LoadGame();
+        // ... (All other methods are unchanged)
+    }
+}            PlayerData = SaveManager.LoadGame();
         }
         
         private void SaveData()
